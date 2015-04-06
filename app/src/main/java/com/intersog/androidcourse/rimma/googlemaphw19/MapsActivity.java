@@ -35,7 +35,6 @@ public class MapsActivity extends FragmentActivity implements
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.i(TAG, "onCreate");
         setContentView(R.layout.activity_maps);
         setUpMapIfNeeded();
         buildGoogleApiClient();
@@ -45,7 +44,6 @@ public class MapsActivity extends FragmentActivity implements
     @Override
     protected void onStart() {
         super.onStart();
-        Log.i(TAG, "onStart ");
         mGoogleApiClient.connect();
     }
 
@@ -53,21 +51,11 @@ public class MapsActivity extends FragmentActivity implements
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
-
-        Log.i(TAG, "onResume "+mGoogleApiClient.isConnected());
-
-//      apiClient isn't connected by this moment
-//      that's why LocationUpdates is called in  onConnected(Bundle bundle) method
-
-//        if (mGoogleApiClient.isConnected()) {
-//            startLocationUpdates();
-//        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-//      Log.i(TAG, "onPause "+mGoogleApiClient.isConnected());
         if (mGoogleApiClient.isConnected()) {
             stopLocationUpdates();
         }
@@ -77,7 +65,6 @@ public class MapsActivity extends FragmentActivity implements
     @Override
     protected void onStop() {
         super.onStop();
-//      Log.i(TAG, "onStop "+mGoogleApiClient.isConnected());
         if (mGoogleApiClient.isConnected()) {
             mGoogleApiClient.disconnect();
         }
@@ -117,35 +104,47 @@ public class MapsActivity extends FragmentActivity implements
 
 
     private void handleNewLocation(Location location) {
-        mLastLocation=location;
-        Log.d(TAG, location.toString());
+        Log.d(TAG, location.toString() + locationId);
+        mLastLocation = location;
         double currentLatitude = location.getLatitude();
         double currentLongitude = location.getLongitude();
         LatLng currentLatLng = new LatLng(currentLatitude, currentLongitude);
-        MarkerOptions options = new MarkerOptions()
-                .position(currentLatLng)
-                .title("#" + locationId);
-        mMap.addMarker(options);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 18));
-        if (mPreviousLocation!=null){
+        if (mPreviousLocation != null) {
             double previousLatitude = mPreviousLocation.getLatitude();
             double previousLongitude = mPreviousLocation.getLongitude();
-            LatLng previousLatLng = new LatLng(previousLatitude, previousLongitude);
-            mMap.addPolyline(new PolylineOptions().add(previousLatLng).add(currentLatLng).width(5).color(Color.RED));
+            if (previousLatitude != currentLatitude || previousLongitude != currentLongitude) {
+                addLocationMarker(currentLatLng);
+                LatLng previousLatLng = new LatLng(previousLatitude, previousLongitude);
+                mMap.addPolyline(new PolylineOptions().add(previousLatLng).add(currentLatLng).width(5).color(Color.RED));
+                locationId++;
+                mPreviousLocation = mLastLocation;
+            }
+        } else {
+            addLocationMarker(currentLatLng);
+            locationId++;
+            mPreviousLocation = mLastLocation;
         }
-        locationId++;
-        mPreviousLocation=mLastLocation;
+    }
+
+    private void addLocationMarker(LatLng latLng) {
+        MarkerOptions options = new MarkerOptions()
+                .position(latLng)
+                .title("#" + locationId);
+        mMap.addMarker(options);
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
     }
 
     @Override
     public void onConnected(Bundle bundle) {
         Log.i(TAG, "Location services connected.");
-        startLocationUpdates();
         if (mLastLocation == null) {
             Log.i(TAG, "mLastLocation == null");
             mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-            handleNewLocation(mLastLocation);
+            if (mLastLocation != null) {
+                handleNewLocation(mLastLocation);
+            }
         }
+        startLocationUpdates();
 
     }
 
